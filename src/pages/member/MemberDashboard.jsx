@@ -5,7 +5,7 @@ import { useAuth } from "../../context/AuthContext";
 import { getMembers, getClassRegistrations, checkInMember } from "../../services/memberService";
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api/";
+const API_URL = import.meta.env.VITE_API_URL || "https://ironpulse-backend-tvu3.onrender.com/api/";
 
 export default function MemberDashboard() {
   const { user } = useAuth();

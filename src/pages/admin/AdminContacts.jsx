@@ -12,7 +12,7 @@ export default function AdminContacts() {
 
   const fetchContacts = async () => {
     try {
-      const response = await axios.get("http://127.0.0.1:8000/api/contacts/");
+      const response = await axios.get("https://ironpulse-backend-tvu3.onrender.com/api/contacts/");
       setContacts(response.data);
     } catch (err) {
       console.error("Lỗi khi tải danh sách liên hệ:", err);
@@ -24,7 +24,7 @@ export default function AdminContacts() {
   const handleDelete = async (id) => {
     if (window.confirm("Bạn có chắc chắn muốn xóa tin nhắn này không?")) {
       try {
-        await axios.delete(`http://127.0.0.1:8000/api/contacts/${id}/`);
+        await axios.delete(`https://ironpulse-backend-tvu3.onrender.com/api/contacts/${id}/`);
         setContacts(contacts.filter((item) => item.id !== id));
       } catch (err) {
         console.error("Lỗi khi xóa tin nhắn:", err);

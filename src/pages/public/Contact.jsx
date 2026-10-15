@@ -18,7 +18,7 @@ export default function Contact() {
 
     try {
       // 2. Gửi dữ liệu trực tiếp lên API Django Backend thay vì localStorage
-      await axios.post("http://127.0.0.1:8000/api/contacts/", newContact);
+      await axios.post("https://ironpulse-backend-tvu3.onrender.com/api/contacts/", newContact);
 
       // 3. Hiển thị thông báo thành công và reset form
       setSent(true);

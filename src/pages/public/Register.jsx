@@ -24,7 +24,7 @@ export default function Register() {
 
     try {
       // 2. Gửi dữ liệu đăng ký trực tiếp sang Django Backend
-      const response = await axios.post("http://127.0.0.1:8000/api/register/", {
+      const response = await axios.post("https://ironpulse-backend-tvu3.onrender.com/api/register/", {
         username: form.email, // Dùng email làm username cho tiện, hoặc bạn có thể tạo thêm ô nhập username
         fullName: form.fullName,
         email: form.email,
