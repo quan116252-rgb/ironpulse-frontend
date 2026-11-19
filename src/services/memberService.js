@@ -39,6 +39,27 @@ export const addMember = async (formData) => {
   }
 };
 
+export const updateMember = async (id, formData) => {
+  try {
+    const numericId = typeof id === "string" && id.startsWith("M00") ? id.replace("M00", "") : id;
+    const response = await axios.put(`${API_URL}members/${numericId}/`, {
+      fullName: formData.fullName,
+      email: formData.email,
+      phone: formData.phone,
+      packageName: formData.packageName,
+      startDate: formData.startDate,
+      endDate: formData.endDate
+    });
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.error ||
+      error.response?.data?.detail ||
+      `Cập nhật hội viên thất bại! (Mã lỗi: ${error.response?.status || "Network Error"})`;
+    throw new Error(message);
+  }
+};
+
 export const deleteMember = async (id) => {
   try {
     const numericId = typeof id === "string" && id.startsWith("M00") ? id.replace("M00", "") : id;
