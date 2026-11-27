@@ -1,10 +1,10 @@
-import axios from 'axios';
+import api from "./api";
 
-const API_URL = import.meta.env.VITE_API_URL || "https://ironpulse-backend-tvu3.onrender.com/api/";
+// ==================== DOANH THU ====================
 
 export const getRevenueStats = async () => {
   try {
-    const response = await axios.get(`${API_URL}revenue/`);
+    const response = await api.get("revenue/");
     return response.data;
   } catch (error) {
     console.error("Lỗi khi tải dữ liệu doanh thu:", error);
@@ -12,9 +12,11 @@ export const getRevenueStats = async () => {
   }
 };
 
+// ==================== HỘI VIÊN ====================
+
 export const getMembers = async () => {
   try {
-    const response = await axios.get(`${API_URL}members/`);
+    const response = await api.get("members/");
     return response.data;
   } catch (error) {
     console.error("Lỗi khi tải danh sách hội viên từ Django:", error);
@@ -24,56 +26,81 @@ export const getMembers = async () => {
 
 export const addMember = async (formData) => {
   try {
-    const response = await axios.post(`${API_URL}members/`, {
+    const response = await api.post("members/", {
       fullName: formData.fullName,
       email: formData.email,
       phone: formData.phone,
       packageName: formData.packageName,
       startDate: formData.startDate,
-      endDate: formData.endDate
+      endDate: formData.endDate,
     });
+
     return response.data;
   } catch (error) {
-    const message = error.response?.data?.error || "Thêm hội viên thất bại!";
+    const message =
+      error.response?.data?.error ||
+      error.response?.data?.detail ||
+      "Thêm hội viên thất bại!";
+
     throw new Error(message);
   }
 };
 
 export const updateMember = async (id, formData) => {
   try {
-    const numericId = typeof id === "string" && id.startsWith("M00") ? id.replace("M00", "") : id;
-    const response = await axios.put(`${API_URL}members/${numericId}/`, {
+    const numericId =
+      typeof id === "string" && id.startsWith("M00")
+        ? id.replace("M00", "")
+        : id;
+
+    const response = await api.put(`members/${numericId}/`, {
       fullName: formData.fullName,
       email: formData.email,
       phone: formData.phone,
       packageName: formData.packageName,
       startDate: formData.startDate,
-      endDate: formData.endDate
+      endDate: formData.endDate,
     });
+
     return response.data;
   } catch (error) {
     const message =
       error.response?.data?.error ||
       error.response?.data?.detail ||
-      `Cập nhật hội viên thất bại! (Mã lỗi: ${error.response?.status || "Network Error"})`;
+      `Cập nhật hội viên thất bại! (Mã lỗi: ${
+        error.response?.status || "Network Error"
+      })`;
+
     throw new Error(message);
   }
 };
 
 export const deleteMember = async (id) => {
   try {
-    const numericId = typeof id === "string" && id.startsWith("M00") ? id.replace("M00", "") : id;
-    const response = await axios.delete(`${API_URL}members/${numericId}/`);
+    const numericId =
+      typeof id === "string" && id.startsWith("M00")
+        ? id.replace("M00", "")
+        : id;
+
+    const response = await api.delete(`members/${numericId}/`);
     return response.data;
   } catch (error) {
     console.error("Lỗi khi xóa hội viên:", error);
-    throw new Error("Xóa hội viên thất bại!");
+
+    const message =
+      error.response?.data?.error ||
+      error.response?.data?.detail ||
+      "Xóa hội viên thất bại!";
+
+    throw new Error(message);
   }
 };
 
+// ==================== CHECK-IN ====================
+
 export const getTodayVisits = async () => {
   try {
-    const response = await axios.get(`${API_URL}visits/today/`);
+    const response = await api.get("visits/today/");
     return response.data.today_visits || 0;
   } catch (error) {
     console.error("Lỗi khi tải số lượt tập hôm nay:", error);
@@ -83,50 +110,23 @@ export const getTodayVisits = async () => {
 
 export const checkInMember = async (checkInData) => {
   try {
-    const response = await axios.post(`${API_URL}checkin/`, {
+    const response = await api.post("checkin/", {
       full_name: checkInData.fullName,
-      phone: checkInData.phone
+      phone: checkInData.phone,
     });
+
     return response.data;
   } catch (error) {
-    const message = error.response?.data?.error || "Check-in thất bại!";
+    const message =
+      error.response?.data?.error || "Check-in thất bại!";
+
     throw new Error(message);
-  }
-};
-
-export const getTrainers = async () => {
-  try {
-    const response = await axios.get(`${API_URL}trainers/`);
-    return response.data;
-  } catch (error) {
-    console.error("Lỗi khi tải danh sách huấn luyện viên từ Django:", error);
-    return [];
-  }
-};
-
-export const addTrainer = async (trainerData) => {
-  try {
-    const response = await axios.post(`${API_URL}trainers/`, trainerData);
-    return response.data;
-  } catch (error) {
-    const message = error.response?.data?.error || "Thêm huấn luyện viên thất bại!";
-    throw new Error(message);
-  }
-};
-
-export const deleteTrainer = async (id) => {
-  try {
-    const response = await axios.delete(`${API_URL}trainers/${id}/`);
-    return response.data;
-  } catch (error) {
-    console.error("Lỗi khi xóa huấn luyện viên:", error);
-    throw new Error("Xóa huấn luyện viên thất bại!");
   }
 };
 
 export const getWeeklyVisits = async () => {
   try {
-    const response = await axios.get(`${API_URL}visits/weekly/`);
+    const response = await api.get("visits/weekly/");
     return response.data;
   } catch (error) {
     console.error("Lỗi khi tải dữ liệu lượt tập theo tuần:", error);
@@ -134,9 +134,11 @@ export const getWeeklyVisits = async () => {
   }
 };
 
+// ==================== HỘI VIÊN SẮP HẾT HẠN ====================
+
 export const getExpiringSoonCount = async () => {
   try {
-    const response = await axios.get(`${API_URL}members/expiring-soon/`);
+    const response = await api.get("members/expiring-soon/");
     return response.data.expiring_count || 0;
   } catch (error) {
     console.error("Lỗi khi tải số hội viên sắp hết hạn:", error);
@@ -144,9 +146,81 @@ export const getExpiringSoonCount = async () => {
   }
 };
 
+// ==================== HUẤN LUYỆN VIÊN ====================
+
+export const getTrainers = async () => {
+  try {
+    const response = await api.get("trainers/");
+    return response.data;
+  } catch (error) {
+    console.error(
+      "Lỗi khi tải danh sách huấn luyện viên từ Django:",
+      error
+    );
+
+    return [];
+  }
+};
+
+export const addTrainer = async (trainerData) => {
+  try {
+    const response = await api.post("trainers/", trainerData);
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.error ||
+      error.response?.data?.detail ||
+      "Thêm huấn luyện viên thất bại!";
+
+    throw new Error(message);
+  }
+};
+
+export const updateTrainer = async (id, trainerData) => {
+  try {
+    const response = await api.put(`trainers/${id}/`, {
+      name: trainerData.name,
+      specialty: trainerData.specialty,
+      experience_years: Number(trainerData.experience_years),
+      phone: trainerData.phone,
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi khi cập nhật huấn luyện viên:", error);
+
+    const message =
+      error.response?.data?.error ||
+      error.response?.data?.detail ||
+      (error.response?.data
+        ? JSON.stringify(error.response.data)
+        : "Cập nhật huấn luyện viên thất bại!");
+
+    throw new Error(message);
+  }
+};
+
+export const deleteTrainer = async (id) => {
+  try {
+    const response = await api.delete(`trainers/${id}/`);
+    return response.data;
+  } catch (error) {
+    console.error("Lỗi khi xóa huấn luyện viên:", error);
+
+    const message =
+      error.response?.data?.error ||
+      error.response?.data?.detail ||
+      "Xóa huấn luyện viên thất bại!";
+
+    throw new Error(message);
+  }
+};
+
+// ==================== GÓI TẬP ====================
+
 export const getPackages = async () => {
   try {
-    const response = await axios.get(`${API_URL}packages/`);
+    const response = await api.get("packages/");
     return response.data;
   } catch (error) {
     console.error("Lỗi khi tải danh sách gói tập:", error);
@@ -159,13 +233,23 @@ export const addPackage = async (packageData) => {
     const payload = {
       name: packageData.name,
       price: Number(packageData.price),
-      duration_months: Number(packageData.durationMonths || packageData.duration_months || 1),
-      description: Array.isArray(packageData.features) ? packageData.features.join(", ") : (packageData.features || "")
+      duration_months: Number(
+        packageData.durationMonths ||
+          packageData.duration_months ||
+          1
+      ),
+      description: Array.isArray(packageData.features)
+        ? packageData.features.join(", ")
+        : packageData.features || "",
     };
-    const response = await axios.post(`${API_URL}packages/`, payload);
+
+    const response = await api.post("packages/", payload);
     return response.data;
   } catch (error) {
-    const message = error.response?.data ? JSON.stringify(error.response.data) : "Thêm gói tập thất bại!";
+    const message = error.response?.data
+      ? JSON.stringify(error.response.data)
+      : "Thêm gói tập thất bại!";
+
     throw new Error(message);
   }
 };
@@ -175,20 +259,30 @@ export const updatePackage = async (id, packageData) => {
     const payload = {
       name: packageData.name,
       price: Number(packageData.price),
-      duration_months: Number(packageData.durationMonths || packageData.duration_months || 1),
-      description: Array.isArray(packageData.features) ? packageData.features.join(", ") : (packageData.features || "")
+      duration_months: Number(
+        packageData.durationMonths ||
+          packageData.duration_months ||
+          1
+      ),
+      description: Array.isArray(packageData.features)
+        ? packageData.features.join(", ")
+        : packageData.features || "",
     };
-    const response = await axios.put(`${API_URL}packages/${id}/`, payload);
+
+    const response = await api.put(`packages/${id}/`, payload);
     return response.data;
   } catch (error) {
-    const message = error.response?.data ? JSON.stringify(error.response.data) : "Cập nhật gói tập thất bại!";
+    const message = error.response?.data
+      ? JSON.stringify(error.response.data)
+      : "Cập nhật gói tập thất bại!";
+
     throw new Error(message);
   }
 };
 
 export const deletePackage = async (id) => {
   try {
-    const response = await axios.delete(`${API_URL}packages/${id}/`);
+    const response = await api.delete(`packages/${id}/`);
     return response.data;
   } catch (error) {
     console.error("Lỗi khi xóa gói tập:", error);
@@ -196,58 +290,129 @@ export const deletePackage = async (id) => {
   }
 };
 
+// ==================== LỚP HỌC ====================
+
 export const getClasses = async () => {
   try {
-    const response = await axios.get(`${API_URL}classes/`);
+    const response = await api.get("classes/");
     return response.data;
   } catch (error) {
+    console.error("Lỗi khi tải danh sách lớp học:", error);
     return [];
   }
 };
+
+// ==================== ĐĂNG KÝ LỚP HỌC ====================
 
 export const getClassRegistrations = async (phone = "") => {
   try {
-    const url = phone ? `${API_URL}class-registrations/?phone=${phone}` : `${API_URL}class-registrations/`;
-    const response = await axios.get(url);
+    const response = await api.get("class-registrations/", {
+      params: phone ? { phone } : {},
+    });
+
     return response.data;
   } catch (error) {
+    console.error("Lỗi khi tải lịch đăng ký lớp:", error);
     return [];
   }
 };
 
+// Hội viên gửi yêu cầu đăng ký lớp
 export const requestBookClass = async (bookingData) => {
   try {
-    const response = await axios.post(`${API_URL}class-registrations/`, bookingData);
-    return response.data;
-  } catch (error) {
-    throw new Error("Gửi yêu cầu đặt lớp thất bại!");
-  }
-};
+    const response = await api.post(
+      "class-registrations/",
+      bookingData
+    );
 
-export const updateRegistrationStatus = async (id, status) => {
-  try {
-    const response = await axios.patch(`${API_URL}class-registrations/${id}/status/`, { status });
     return response.data;
   } catch (error) {
-    throw new Error("Cập nhật trạng thái thất bại!");
-  }
-};
+    const message =
+      error.response?.data?.error ||
+      error.response?.data?.detail ||
+      "Gửi yêu cầu đặt lớp thất bại!";
 
-export const registerPackage = async (data) => {
-  try {
-    const response = await axios.post(`${API_URL}register-package/`, data);
-    return response.data;
-  } catch (error) {
-    const message = error.response?.data?.error || "Đăng ký gói thất bại!";
     throw new Error(message);
   }
 };
 
-export const updateMemberProfile = async (profileData) => {
+// Hội viên hủy yêu cầu đăng ký lớp đang chờ Admin phê duyệt
+export const cancelClassRegistration = async (id) => {
   try {
-    const response = await axios.put(`${API_URL}members/update-profile/`, profileData);
+    const response = await api.post(
+      `class-registrations/${id}/cancel/`
+    );
+
     return response.data;
   } catch (error) {
-    throw new Error(error.response?.data?.error || "Lỗi cập nhật thông tin cá nhân!");
+    console.error("CHI TIẾT LỖI HỦY ĐĂNG KÝ:", error);
+    console.error("HTTP STATUS:", error.response?.status);
+    console.error("BACKEND RESPONSE:", error.response?.data);
+    console.error("REQUEST URL:", error.config?.url);
+
+    const message =
+      error.response?.data?.error ||
+      error.response?.data?.detail ||
+      error.response?.data?.message ||
+      `Hủy yêu cầu thất bại (HTTP ${
+        error.response?.status || "Network Error"
+      })`;
+
+    throw new Error(message);
+  }
+};
+
+// Admin duyệt, từ chối hoặc đưa yêu cầu về trạng thái chờ
+export const updateRegistrationStatus = async (id, status) => {
+  try {
+    const response = await api.patch(
+      `class-registrations/${id}/status/`,
+      { status }
+    );
+
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.error ||
+      error.response?.data?.detail ||
+      "Cập nhật trạng thái đăng ký lớp thất bại!";
+
+    throw new Error(message);
+  }
+};
+
+// ==================== ĐĂNG KÝ GÓI TẬP ====================
+
+export const registerPackage = async (data) => {
+  try {
+    const response = await api.post("register-package/", data);
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.error ||
+      error.response?.data?.detail ||
+      "Đăng ký gói thất bại!";
+
+    throw new Error(message);
+  }
+};
+
+// ==================== CẬP NHẬT HỒ SƠ CÁ NHÂN ====================
+
+export const updateMemberProfile = async (profileData) => {
+  try {
+    const response = await api.put(
+      "members/update-profile/",
+      profileData
+    );
+
+    return response.data;
+  } catch (error) {
+    const message =
+      error.response?.data?.error ||
+      error.response?.data?.detail ||
+      "Lỗi cập nhật thông tin cá nhân!";
+
+    throw new Error(message);
   }
 };

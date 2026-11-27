@@ -1,257 +1,632 @@
+
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { QrCode, CalendarClock, Flame, CheckCircle2 } from "lucide-react";
+import {
+  QrCode,
+  CalendarClock,
+  Flame,
+  CheckCircle2,
+  Dumbbell,
+  Clock,
+  MapPin,
+  Crown,
+  CalendarDays,
+  ArrowRight,
+  Award,
+  AlertTriangle,
+  RefreshCw,
+} from "lucide-react";
+
 import { useAuth } from "../../context/AuthContext";
-import { getMembers, getClassRegistrations, checkInMember } from "../../services/memberService";
+import {
+  getMembers,
+  getClassRegistrations,
+  checkInMember,
+} from "../../services/memberService";
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL || "https://ironpulse-backend-tvu3.onrender.com/api/";
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://ironpulse-backend-tvu3.onrender.com/api/";
 
 export default function MemberDashboard() {
   const { user } = useAuth();
+
   const [membersList, setMembersList] = useState([]);
   const [approvedClasses, setApprovedClasses] = useState([]);
   const [isCheckedInToday, setIsCheckedInToday] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Lấy chuỗi ngày hôm nay dạng YYYY-MM-DD để làm key lưu trữ
+  // Lấy ngày hiện tại theo giờ địa phương
   const getTodayKey = () => {
     const today = new Date();
-    return today.toISOString().split("T")[0];
+
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
   };
 
-  // Kiểm tra trạng thái điểm danh từ cả Backend và LocalStorage (dự phòng)
+  // Kiểm tra trạng thái điểm danh
   const checkStatusFromDB = async (phone) => {
     const todayKey = getTodayKey();
     const localCheckInKey = `checkin_${phone}_${todayKey}`;
 
-    // 1. Kiểm tra cache cục bộ trước để giao diện phản hồi tức thì khi F5
     const isLocallyCheckedIn = localStorage.getItem(localCheckInKey);
+
     if (isLocallyCheckedIn === "true") {
       setIsCheckedInToday(true);
     }
 
-    // 2. Đồng bộ kiểm tra với Database
     try {
-      const checkinRes = await axios.get(`${API_URL}checkin/status/?phone=${phone}`);
-      if (checkinRes.data && checkinRes.data.hasCheckedInToday) {
+      const checkinRes = await axios.get(
+        `${API_URL}checkin/status/?phone=${phone}`
+      );
+
+      if (
+        checkinRes.data &&
+        (
+          checkinRes.data.hasCheckedInToday ||
+          checkinRes.data.hasCheckedIn
+        )
+      ) {
         setIsCheckedInToday(true);
         localStorage.setItem(localCheckInKey, "true");
       } else if (isLocallyCheckedIn !== "true") {
         setIsCheckedInToday(false);
       }
-    } catch (e) {
-      // Nếu API status chưa sẵn sàng, kiểm tra danh sách vắng/lượt tập trong ngày
-      try {
-        const todayRes = await axios.get(`${API_URL}visits/today/`);
-        if (todayRes.data.today_visits === 0 && isLocallyCheckedIn !== "true") {
-          setIsCheckedInToday(false);
-        }
-      } catch (err) {
-        // Giữ trạng thái local nếu API lỗi
-        if (isLocallyCheckedIn !== "true") {
-          setIsCheckedInToday(false);
-        }
+    } catch (error) {
+      if (isLocallyCheckedIn !== "true") {
+        setIsCheckedInToday(false);
       }
     }
   };
 
+  // Tải dữ liệu hội viên và lịch tập
   useEffect(() => {
+    let isMounted = true;
+
     const fetchData = async () => {
       try {
-        const data = await getMembers();
-        setMembersList(data || []);
+        setLoading(true);
 
-        const currentMember = (data || []).find(
-          (m) => m.email === user?.email || (user?.phone && m.phone === user?.phone)
+        const data = await getMembers();
+
+        if (!isMounted) return;
+
+        const members = data || [];
+        setMembersList(members);
+
+        const currentMember = members.find(
+          (m) =>
+            m.email === user?.email ||
+            (user?.phone && m.phone === user?.phone)
         );
 
         if (currentMember && currentMember.phone) {
-          // 1. Tải các lớp tập đã được duyệt
-          const regs = await getClassRegistrations(currentMember.phone);
-          const approved = (regs || []).filter((r) => r.status === "APPROVED");
-          setApprovedClasses(approved);
+          // Chỉ tải lịch tập khi gói còn hạn
+          if (currentMember.status === "Active") {
+            const regs = await getClassRegistrations(
+              currentMember.phone
+            );
 
-          // 2. Kiểm tra trạng thái trực tiếp từ Database & LocalStorage
-          await checkStatusFromDB(currentMember.phone);
+            if (!isMounted) return;
+
+            const approved = (regs || []).filter(
+              (r) => r.status === "APPROVED"
+            );
+
+            setApprovedClasses(approved);
+
+            await checkStatusFromDB(currentMember.phone);
+          } else {
+            setApprovedClasses([]);
+            setIsCheckedInToday(false);
+          }
         } else {
+          setApprovedClasses([]);
           setIsCheckedInToday(false);
         }
       } catch (error) {
         console.error("Lỗi khi tải dữ liệu tổng quan:", error);
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchData();
+    if (user) {
+      fetchData();
+    } else {
+      setLoading(false);
+    }
+
+    return () => {
+      isMounted = false;
+    };
   }, [user]);
 
   if (!user || loading) {
-    return <div style={{ padding: "20px" }}>Đang tải thông tin tài khoản...</div>;
+    return (
+      <div className="ipx-member-loading">
+        <Dumbbell size={28} />
+        <p>Đang tải thông tin tài khoản...</p>
+      </div>
+    );
   }
 
-  const info = membersList.find(
-    (m) => m.email === user.email || (user.phone && m.phone === user.phone)
-  ) || {
-    id: "Chưa có",
-    packageName: "Chưa đăng ký gói",
-    endDate: "--/--/----",
-  };
+  // Thông tin hội viên hiện tại
+  const info =
+    membersList.find(
+      (m) =>
+        m.email === user.email ||
+        (user.phone && m.phone === user.phone)
+    ) || {
+      id: "Chưa có",
+      packageName: "Chưa đăng ký gói",
+      startDate: "",
+      endDate: "",
+      status: "Expired",
+    };
 
-  const isRegistered = info.id !== "Chưa có" && info.packageName !== "Chưa đăng ký gói";
+  // Đã từng đăng ký gói hay chưa
+  const isRegistered =
+    info.id !== "Chưa có" &&
+    info.packageName !== "Chưa đăng ký gói";
+
+  // Kiểm tra ngày hết hạn
+  const todayKey = getTodayKey();
+
+  const isDateActive =
+    info.startDate &&
+    info.endDate &&
+    info.startDate <= todayKey &&
+    todayKey < info.endDate;
+
+  // Trạng thái gói hiện tại
+  const isPackageActive =
+    isRegistered &&
+    (
+      info.status === "Active" ||
+      (!info.status && isDateActive)
+    );
+
+  const isPackageExpired =
+    isRegistered && !isPackageActive;
+
   const packageName = info.packageName || "";
   const isVip = packageName.toUpperCase().includes("VIP");
 
-  // Lịch tập cá nhân
+  // Lịch tập gói VIP
   const vipSchedule = [
-    { id: "p1", title: "Buổi 1: Thể lực nâng cao & HIIT Cardio (Có PT kèm)", date: "Thứ 2", time: "18:00", place: "Phòng VIP & Khu Cardio", type: "Gói cá nhân" },
-    { id: "p2", title: "Buổi 2: Sức mạnh cơ trên chuyên sâu (Upper Body)", date: "Thứ 4", time: "18:00", place: "Phòng Gym chính (Khu VIP)", type: "Gói cá nhân" },
-    { id: "p3", title: "Buổi 3: Sức mạnh cơ dưới & Đốt mỡ (Lower Body)", date: "Thứ 6", time: "18:00", place: "Phòng Gym chính (Khu VIP)", type: "Gói cá nhân" },
-    { id: "p4", title: "Buổi 4: Yoga trị liệu & Stretching cao cấp", date: "Chủ Nhật", time: "09:00", place: "Phòng Studio 1", type: "Gói cá nhân" }
+    {
+      id: "p1",
+      title: "Thể lực nâng cao & HIIT Cardio",
+      date: "Thứ 2",
+      time: "18:00",
+      place: "Phòng VIP & Khu Cardio",
+      type: "Gói cá nhân",
+      note: "Có PT kèm",
+    },
+    {
+      id: "p2",
+      title: "Sức mạnh cơ trên chuyên sâu",
+      date: "Thứ 4",
+      time: "18:00",
+      place: "Phòng Gym chính (Khu VIP)",
+      type: "Gói cá nhân",
+      note: "Upper Body",
+    },
+    {
+      id: "p3",
+      title: "Sức mạnh cơ dưới & Đốt mỡ",
+      date: "Thứ 6",
+      time: "18:00",
+      place: "Phòng Gym chính (Khu VIP)",
+      type: "Gói cá nhân",
+      note: "Lower Body",
+    },
+    {
+      id: "p4",
+      title: "Yoga trị liệu & Stretching cao cấp",
+      date: "Chủ Nhật",
+      time: "09:00",
+      place: "Phòng Studio 1",
+      type: "Gói cá nhân",
+      note: "Thư giãn và phục hồi",
+    },
   ];
 
+  // Lịch tập gói Basic
   const basicSchedule = [
-    { id: "p1", title: "Buổi 1: Thể hình cơ bản toàn thân (Full Body)", date: "Thứ 2", time: "07:00", place: "Khu vực máy cơ bản", type: "Gói cá nhân" },
-    { id: "p2", title: "Buổi 2: Tập nhóm cơ ngực & tay trước", date: "Thứ 3", time: "17:30", place: "Phòng tập chung", type: "Gói cá nhân" },
-    { id: "p3", title: "Buổi 3: Tập nhóm cơ lưng & tay sau", date: "Thứ 5", time: "17:30", place: "Phòng tập chung", type: "Gói cá nhân" },
-    { id: "p4", title: "Buổi 4: Cardio cơ bản & Thư giãn", date: "Thứ 7", time: "08:00", place: "Khu chạy bộ", type: "Gói cá nhân" }
+    {
+      id: "p1",
+      title: "Thể hình cơ bản toàn thân",
+      date: "Thứ 2",
+      time: "07:00",
+      place: "Khu vực máy cơ bản",
+      type: "Gói cá nhân",
+      note: "Full Body",
+    },
+    {
+      id: "p2",
+      title: "Tập nhóm cơ ngực & tay trước",
+      date: "Thứ 3",
+      time: "17:30",
+      place: "Phòng tập chung",
+      type: "Gói cá nhân",
+      note: "Tập luyện sức mạnh",
+    },
+    {
+      id: "p3",
+      title: "Tập nhóm cơ lưng & tay sau",
+      date: "Thứ 5",
+      time: "17:30",
+      place: "Phòng tập chung",
+      type: "Gói cá nhân",
+      note: "Tập luyện sức mạnh",
+    },
+    {
+      id: "p4",
+      title: "Cardio cơ bản & Thư giãn",
+      date: "Thứ 7",
+      time: "08:00",
+      place: "Khu chạy bộ",
+      type: "Gói cá nhân",
+      note: "Cardio",
+    },
   ];
 
-  const defaultSchedule = isRegistered ? (isVip ? vipSchedule : basicSchedule) : [];
+  // Chỉ hiển thị lịch mặc định khi gói còn hạn
+  const defaultSchedule = isPackageActive
+    ? isVip
+      ? vipSchedule
+      : basicSchedule
+    : [];
 
-  const extraSchedule = approvedClasses.map((ac) => ({
-    id: `extra-${ac.id}`,
-    title: `Lớp bổ sung: ${ac.className}`,
-    date: ac.schedule || "Theo lịch lớp",
-    time: ac.trainer ? `HLV: ${ac.trainer}` : "",
-    place: "Phòng tập chuyên đề",
-    type: "Lớp đặt thêm"
-  }));
+  // Các lớp tập đã được Admin duyệt
+  const extraSchedule = isPackageActive
+    ? approvedClasses.map((ac) => ({
+        id: `extra-${ac.id}`,
+        title: `Lớp bổ sung: ${ac.className}`,
+        date: ac.schedule || "Theo lịch lớp",
+        time: ac.trainer ? `HLV: ${ac.trainer}` : "",
+        place: "Phòng tập chuyên đề",
+        type: "Lớp đặt thêm",
+        note: "Đã được xác nhận",
+      }))
+    : [];
 
-  const fullScheduleList = [...defaultSchedule, ...extraSchedule];
+  const fullScheduleList = [
+    ...defaultSchedule,
+    ...extraSchedule,
+  ];
 
   // Xử lý điểm danh
   const handleCheckIn = async () => {
-    const userPhone = user.phone || info.phone || "0901234567";
+    if (!isPackageActive) {
+      alert("Gói tập của bạn đã hết hạn. Vui lòng gia hạn để tiếp tục tập luyện!");
+      return;
+    }
+
+    const userPhone = user.phone || info.phone;
+
+    if (!userPhone) {
+      alert("Không tìm thấy số điện thoại hội viên!");
+      return;
+    }
+
     const todayKey = getTodayKey();
     const localCheckInKey = `checkin_${userPhone}_${todayKey}`;
 
     try {
-      // 1. Gọi API lưu vào CSDL Django
       await checkInMember({
         fullName: user.fullName || info.fullName || "Hội viên",
-        phone: userPhone
+        phone: userPhone,
       });
 
-      // 2. Cập nhật state & lưu cache ngay lập tức
       setIsCheckedInToday(true);
       localStorage.setItem(localCheckInKey, "true");
 
-      alert("🎉 Xác nhận thành công! Chúc bạn có một buổi tập hiệu quả.");
+      alert(
+        "🎉 Xác nhận thành công! Chúc bạn có một buổi tập hiệu quả."
+      );
     } catch (error) {
-      // Dù API ghi nhận hay lỗi nhẹ, nếu đã xác nhận thành công thì lưu lại trạng thái local
-      setIsCheckedInToday(true);
-      localStorage.setItem(localCheckInKey, "true");
-      alert("🎉 Xác nhận điểm danh thành công!");
+      console.error("Lỗi điểm danh:", error);
+
+      alert(
+        error.response?.data?.error ||
+        error.message ||
+        "Không thể xác nhận điểm danh. Vui lòng thử lại!"
+      );
     }
   };
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-        <h1 className="page-title" style={{ margin: 0 }}>
-          Xin chào, {user.fullName || "Hội viên"} 👋
-        </h1>
+    <div className="ipx-member-dashboard">
 
-        {isRegistered && (
+      {/* HEADER */}
+      <section className="ipx-member-header">
+        <div>
+          <span className="ipx-member-eyebrow">
+            IRONPULSE FITNESS CLUB
+          </span>
+
+          <h1>
+            XIN CHÀO,{" "}
+            <span>{user.fullName || "HỘI VIÊN"}</span>
+          </h1>
+
+          <p>
+            Hãy tiếp tục hành trình chinh phục mục tiêu của bạn.
+          </p>
+        </div>
+
+        {isPackageActive && (
           <button
             onClick={handleCheckIn}
             disabled={isCheckedInToday}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "8px",
-              padding: "10px 18px",
-              borderRadius: "10px",
-              fontWeight: "bold",
-              fontSize: "14px",
-              border: "none",
-              cursor: isCheckedInToday ? "default" : "pointer",
-              backgroundColor: isCheckedInToday ? "#10b981" : "#f97316",
-              color: "#ffffff",
-              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-              transition: "all 0.2s ease"
-            }}
+            className={`ipx-member-checkin ${
+              isCheckedInToday ? "checked" : ""
+            }`}
           >
             <CheckCircle2 size={18} />
-            {isCheckedInToday ? "Hôm nay đã điểm danh ✓" : "Xác nhận hôm nay đã tập"}
+
+            {isCheckedInToday
+              ? "HÔM NAY ĐÃ ĐIỂM DANH"
+              : "XÁC NHẬN ĐIỂM DANH"}
           </button>
         )}
-      </div>
+      </section>
 
-      <div className="grid grid-3">
-        <div className="stat">
-          <QrCode size={22} />
-          <span className="stat-label">Mã hội viên</span>
-          <strong>{typeof info.id === "number" ? `M00${info.id}` : info.id}</strong>
-        </div>
-        <div className="stat">
-          <CalendarClock size={22} />
-          <span className="stat-label">{info.packageName} · hết hạn</span>
-          <strong>{info.endDate}</strong>
-        </div>
-        <div className="stat">
-          <Flame size={22} />
-          <span className="stat-label">Số buổi tập/tháng</span>
-          <strong>{isRegistered ? `16` : "0"}</strong>
-        </div>
-      </div>
+      {/* MEMBER STATS */}
+      <section className="ipx-member-stats">
 
-      {!isRegistered && (
-        <div className="panel" style={{ padding: "20px", marginTop: "20px", backgroundColor: "#fff7ed", border: "1px solid #ffedd5" }}>
-          <p style={{ margin: "0 0 10px 0", color: "#9a3412", fontWeight: "bold" }}>
-            Bạn chưa đăng ký gói hội viên nào nên chưa có lịch tập!
-          </p>
-          <Link to="/member/packages" className="btn btn-primary" style={{ display: "inline-block", textDecoration: "none" }}>
-            Đăng ký gói tập ngay
-          </Link>
-        </div>
-      )}
-
-      {isRegistered && (
-        <div className="panel" style={{ marginTop: "20px" }}>
-          <div className="panel-head">
-            <h3>Lịch tập cá nhân ({fullScheduleList.length} buổi/tuần) - {isVip ? "🌟 Gói VIP Cao Cấp" : "💪 Gói Chuẩn (Basic)"}</h3>
-            <Link to="/member/schedule">Xem chi tiết</Link>
+        <div className="ipx-member-stat">
+          <div className="ipx-member-stat-icon">
+            <QrCode size={22} />
           </div>
-          <ul className="list" style={{ paddingLeft: 0, listStyle: "none" }}>
-            {fullScheduleList.map((s) => (
-              <li key={s.id} style={{ padding: "12px 0", borderBottom: "1px solid #f3f4f6", textAlign: "left" }}>
-                <strong style={{ fontSize: "15px", display: "block", marginBottom: "4px" }}>{s.title}</strong>
-                <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-                  <span className="muted" style={{ fontSize: "13px" }}>
-                    🕒 {s.date} {s.time && `· ${s.time}`} &nbsp;|&nbsp; 📍 {s.place}
-                  </span>
-                  <span
-                    className="badge"
-                    style={{
-                      backgroundColor: s.type === "Gói cá nhân" ? "#e0f2fe" : "#fef3c7",
-                      color: s.type === "Gói cá nhân" ? "#0369a1" : "#b45309",
-                      padding: "2px 8px",
-                      borderRadius: "4px",
-                      fontSize: "11px",
-                      fontWeight: 600
-                    }}
-                  >
-                    {s.type}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ul>
+
+          <div>
+            <span>MÃ HỘI VIÊN</span>
+
+            <strong>
+              {typeof info.id === "number"
+                ? `M00${info.id}`
+                : info.id}
+            </strong>
+          </div>
         </div>
+
+        <div className="ipx-member-stat">
+          <div className="ipx-member-stat-icon">
+            <CalendarClock size={22} />
+          </div>
+
+          <div>
+            <span>
+              {isRegistered
+                ? `${info.packageName} · HẾT HẠN`
+                : "GÓI HỘI VIÊN"}
+            </span>
+
+            <strong>
+              {info.endDate || "--/--/----"}
+            </strong>
+          </div>
+        </div>
+
+        <div className="ipx-member-stat">
+          <div className="ipx-member-stat-icon">
+            {isPackageActive ? (
+              <Flame size={22} />
+            ) : (
+              <AlertTriangle size={22} />
+            )}
+          </div>
+
+          <div>
+            <span>TRẠNG THÁI GÓI</span>
+
+            <strong>
+              {isPackageActive
+                ? "ĐANG HOẠT ĐỘNG"
+                : isPackageExpired
+                ? "ĐÃ HẾT HẠN"
+                : "CHƯA ĐĂNG KÝ"}
+            </strong>
+          </div>
+        </div>
+
+      </section>
+
+      {/* CHƯA ĐĂNG KÝ GÓI */}
+      {!isRegistered && (
+        <section className="ipx-member-no-package">
+          <div className="ipx-member-no-package-icon">
+            <Dumbbell size={27} />
+          </div>
+
+          <div>
+            <h3>BẠN CHƯA ĐĂNG KÝ GÓI HỘI VIÊN</h3>
+
+            <p>
+              Hãy lựa chọn gói tập phù hợp để bắt đầu hành trình
+              luyện tập tại IronPulse.
+            </p>
+          </div>
+
+          <Link to="/member/packages">
+            ĐĂNG KÝ GÓI TẬP
+            <ArrowRight size={17} />
+          </Link>
+        </section>
       )}
+
+      {/* GÓI ĐÃ HẾT HẠN */}
+      {isPackageExpired && (
+        <section className="ipx-member-expired">
+
+          <div className="ipx-member-expired-icon">
+            <AlertTriangle size={30} />
+          </div>
+
+          <div className="ipx-member-expired-content">
+            <span className="ipx-member-eyebrow">
+              MEMBERSHIP EXPIRED
+            </span>
+
+            <h2>GÓI TẬP CỦA BẠN ĐÃ HẾT HẠN!</h2>
+
+            <p>
+              Gói <strong>{info.packageName}</strong> của bạn
+              đã hết thời hạn sử dụng vào ngày{" "}
+              <strong>{info.endDate}</strong>.
+            </p>
+
+            <p>
+              Lịch tập cá nhân và các lớp đăng ký bổ sung
+              hiện đã được ẩn. Vui lòng gia hạn gói cũ
+              hoặc lựa chọn một gói tập mới để tiếp tục
+              sử dụng các dịch vụ tại IronPulse.
+            </p>
+
+            <Link
+              to="/member/packages"
+              className="ipx-member-renew-button"
+            >
+              <RefreshCw size={18} />
+              GIA HẠN / ĐĂNG KÝ GÓI MỚI
+              <ArrowRight size={17} />
+            </Link>
+          </div>
+
+        </section>
+      )}
+
+      {/* LỊCH TẬP - CHỈ HIỂN THỊ KHI GÓI CÒN HẠN */}
+      {isPackageActive && (
+        <section className="ipx-member-schedule">
+
+          <div className="ipx-member-section-heading">
+            <div>
+              <span className="ipx-member-eyebrow">
+                KẾ HOẠCH LUYỆN TẬP
+              </span>
+
+              <h2>
+                LỊCH TẬP <span>CỦA BẠN</span>
+              </h2>
+
+              <p>
+                Theo dõi các buổi tập cá nhân và lớp học đã đăng ký.
+              </p>
+            </div>
+
+            <Link to="/member/schedule">
+              XEM CHI TIẾT
+              <ArrowRight size={16} />
+            </Link>
+          </div>
+
+          {/* GÓI HIỆN TẠI */}
+          <div className="ipx-member-package-banner">
+
+            <div className="ipx-member-package-icon">
+              {isVip ? (
+                <Crown size={23} />
+              ) : (
+                <Dumbbell size={23} />
+              )}
+            </div>
+
+            <div>
+              <span>GÓI HỘI VIÊN HIỆN TẠI</span>
+
+              <h3>
+                {isVip
+                  ? "GÓI VIP CAO CẤP"
+                  : "GÓI CHUẨN BASIC"}
+              </h3>
+            </div>
+
+            <div className="ipx-member-package-badge">
+              <Award size={15} />
+              ĐANG HOẠT ĐỘNG
+            </div>
+
+          </div>
+
+          {/* DANH SÁCH LỊCH TẬP */}
+          <div className="ipx-member-schedule-list">
+
+            {fullScheduleList.map((s, index) => (
+              <article
+                key={s.id}
+                className="ipx-member-schedule-item"
+              >
+                <div className="ipx-member-schedule-number">
+                  {String(index + 1).padStart(2, "0")}
+                </div>
+
+                <div className="ipx-member-schedule-main">
+
+                  <div className="ipx-member-schedule-title">
+                    <h3>{s.title}</h3>
+
+                    <span
+                      className={
+                        s.type === "Gói cá nhân"
+                          ? "ipx-member-type personal"
+                          : "ipx-member-type extra"
+                      }
+                    >
+                      {s.type}
+                    </span>
+                  </div>
+
+                  {s.note && (
+                    <p className="ipx-member-schedule-note">
+                      {s.note}
+                    </p>
+                  )}
+
+                  <div className="ipx-member-schedule-details">
+
+                    <span>
+                      <CalendarDays size={14} />
+                      {s.date}
+                    </span>
+
+                    {s.time && (
+                      <span>
+                        <Clock size={14} />
+                        {s.time}
+                      </span>
+                    )}
+
+                    <span>
+                      <MapPin size={14} />
+                      {s.place}
+                    </span>
+
+                  </div>
+                </div>
+              </article>
+            ))}
+
+            {fullScheduleList.length === 0 && (
+              <div className="ipx-member-empty">
+                Chưa có lịch tập nào được hiển thị.
+              </div>
+            )}
+
+          </div>
+        </section>
+      )}
+
     </div>
   );
 }

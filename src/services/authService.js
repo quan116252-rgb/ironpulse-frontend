@@ -1,7 +1,24 @@
+
 import axios from "axios";
 
-const API_URL = "https://ironpulse-backend-tvu3.onrender.com/api/";
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://ironpulse-backend-tvu3.onrender.com/api/";
 
+// Chuẩn hóa dữ liệu người dùng trả về từ Django
+const normalizeUser = (userData) => {
+  const user = userData.user || userData;
+
+  return {
+    email: user.email || "",
+    fullName: user.fullName || user.username || "",
+    username: user.username || user.email || "",
+    phone: user.phone || "",
+    role: user.role || "Member",
+  };
+};
+
+// Đăng nhập
 export const login = async (email, password) => {
   try {
     const response = await axios.post(`${API_URL}login/`, {
@@ -9,23 +26,29 @@ export const login = async (email, password) => {
       email: email,
       password: password,
     });
-    
-    const userData = response.data; // Nhận về từ Django: { message, username, email, fullName, role }
-    
+
+    const data = response.data;
+
+    if (!data.token) {
+      throw new Error("Backend không trả về token xác thực.");
+    }
+
     return {
-      token: "django-auth-token", // Token định danh phiên làm việc
-      user: {
-        email: userData.email,
-        fullName: userData.fullName || userData.username,
-        role: userData.role, // "Admin" hoặc "Member"
-      },
+      token: data.token,
+      user: normalizeUser(data),
     };
   } catch (error) {
-    const message = error.response?.data?.error || "Email hoặc mật khẩu không đúng";
+    const message =
+      error.response?.data?.error ||
+      error.response?.data?.detail ||
+      error.message ||
+      "Email hoặc mật khẩu không đúng.";
+
     throw new Error(message);
   }
 };
 
+// Đăng ký
 export const register = async (data) => {
   try {
     const response = await axios.post(`${API_URL}register/`, {
@@ -35,18 +58,23 @@ export const register = async (data) => {
       fullName: data.fullName,
     });
 
-    const userData = response.data;
-    
+    const result = response.data;
+
+    if (!result.token) {
+      throw new Error("Backend không trả về token xác thực.");
+    }
+
     return {
-      token: "django-auth-token",
-      user: {
-        email: data.email,
-        fullName: data.fullName,
-        role: "Member", // Mặc định tài khoản đăng ký mới là Member
-      },
+      token: result.token,
+      user: normalizeUser(result),
     };
   } catch (error) {
-    const message = error.response?.data?.error || "Đăng ký thất bại, vui lòng thử lại!";
+    const message =
+      error.response?.data?.error ||
+      error.response?.data?.detail ||
+      error.message ||
+      "Đăng ký thất bại, vui lòng thử lại!";
+
     throw new Error(message);
   }
 };
